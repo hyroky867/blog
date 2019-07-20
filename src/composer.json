@@ -15,6 +15,7 @@
     },
     "require-dev": {
         "beyondcode/laravel-dump-server": "^1.0",
+        "brainmaestro/composer-git-hooks": "^2.7",
         "filp/whoops": "^2.0",
         "friendsofphp/php-cs-fixer": "^2.15",
         "fzaninotto/faker": "^1.4",
