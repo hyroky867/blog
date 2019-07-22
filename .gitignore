@@ -4,6 +4,7 @@
 .env
 .idea
 
+/src/.tmp_staging
 /src/.phpstorm.meta.php
 /src/_ide_helper.php
 /src/_ide_helper_models.php
