@@ -1,0 +1,37 @@
+# path to phpcs "binary"
+PHPCS_BIN=./src/vendor/bin/phpcs
+
+# the coding standard, you can also specify a path to your own standard here
+# e. g. /path/to/my/standard/dir/
+PHPCS_CODING_STANDARD=./src/phpcs.xml
+PHPCBF_CODING_STANDARD=phpcs.xml
+
+PHPMD_BIN=./src/vendor/bin/phpmd
+PHPMD_RULES=./src/ruleset.xml
+PHPCBF_BIN=./vendor/bin/phpcbf
+
+ARTISAN=src/artisan
+PHPSTAN_BIN=./src/vendor/bin/phpstan
+
+# comma-separated list of file patterns being ignored
+#PHPCS_IGNORE=application/libraries/Twig.php,application/views/,application/tests/,tests
+PHPCS_IGNORE=
+
+PHPMD_EXCLUDE=database/*,
+
+# comma-separated list of sniffs from the standard that should be used
+# use `phpcs --standard=PSR1 -e` to list sniffs for your standard
+#PHPCS_SNIFFS=Generic.Files.ByteOrderMark,Generic.PHP.DisallowShortOpenTag
+PHPCS_SNIFFS=
+
+# egrep compatible pattern of files to be checked
+PHPCS_FILE_PATTERN="\.(php|phtml)$"
+
+# ignore warnings
+PHPCS_IGNORE_WARNINGS=1
+
+# encoding
+PHPCS_ENCODING=utf-8
+
+# file_output( 0:none, 1:output phpcs.log )
+FILE_OUTPUT=0

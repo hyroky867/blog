@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<ruleset name="Custom_PSR12">
+    <description>Custom ruleset Based on PSR12</description>
+    <!-- 参照するルール( `PSR12` ) -->
+    <rule ref="PSR12" />
+
+    <!-- 拡張子を指定する(.php) -->
+    <arg name="extensions" value="php" />
+    <!-- 結果出力に色を付ける -->
+    <arg name="colors" />
+    <!-- 進捗を表示する(-p) -->
+    <!-- エラー情報に、違反したルールを表示する(-s) -->
+    <arg value="ps" />
+
+    <!--テストのメソッド名チェックを除外する-->
+    <rule ref="PSR1.Methods.CamelCapsMethodName.NotCamelCaps">
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+    <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+
+    <!--MigrationやSeederなどのnamespaceチェックを除外する-->
+    <rule ref="PSR1.Classes.ClassDeclaration">
+        <exclude-pattern>*/database/*</exclude-pattern>
+    </rule>
+
+    <!--改行コードをLFに指定-->
+    <rule ref="Generic.Files.LineEndings">
+        <properties>
+            <property name="eolChar" value="\n" />
+        </properties>
+    </rule>
+
+    <!--変数名をcamelcaseに-->
+    <rule ref="Squiz.NamingConventions.ValidVariableName.NotCamelCaps">
+        <severity>4</severity>
+    </rule>
+
+    <!-- チェックから除外するディレクトリ(Laravelの場合) -->
+    <exclude-pattern>/bootstrap/</exclude-pattern>
+    <exclude-pattern>/config/</exclude-pattern>
+    <exclude-pattern>/node_modules/</exclude-pattern>
+    <exclude-pattern>/public/</exclude-pattern>
+    <exclude-pattern>/resources/</exclude-pattern>
+    <exclude-pattern>/routes/</exclude-pattern>
+    <exclude-pattern>/storage/</exclude-pattern>
+    <exclude-pattern>/vendor/</exclude-pattern>
+</ruleset>

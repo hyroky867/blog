@@ -1,0 +1,196 @@
+#!/bin/bash
+
+# PHP CodeSniffer pre-commit hook for git
+#
+# @author Soenke Ruempler <soenke@ruempler.eu>
+# @author Sebastian Kaspari <s.kaspari@googlemail.com>
+#
+# see the https://github.com/s0enke/git-hooks/blob/master/phpcs-pre-commit/README
+
+PHPCS_BIN=./vendor/bin/phpcs
+PHPMD_BIN=./vendor/bin/phpmd
+PHPSTAN_BIN=./vendor/bin/phpstan
+ARTISAN=src/artisan
+PHPCS_CODING_STANDARD=PEAR
+PHPCS_IGNORE=
+TMP_STAGING="./src/.tmp_staging/"
+PHPMD_RULES=codesize,unusedcode
+PHPMD_EXCLUDE=
+
+# parse config
+CONFIG_FILE=$(dirname $0)/pre-commit-config
+if [ -e $CONFIG_FILE ]; then
+    . $CONFIG_FILE
+fi
+
+# simple check if code sniffer is set up correctly
+if [ ! -x $PHPCS_BIN ]; then
+    echo "PHP CodeSniffer bin not found or executable -> $PHPCS_BIN"
+    exit 1
+fi
+
+# simple check if mess detector is set up correctly
+if [ ! -x $PHPCS_BIN ]; then
+    echo "PHP Mess Detector bin not found or executable -> $PHPMD_BIN"
+    exit 1
+fi
+
+# simple check if PHPStan is set up correctly
+if [ ! -x $PHPSTAN_BIN ]; then
+    echo "PHPStan bin not found or executable -> $PHPSTAN_BIN"
+    exit 1
+fi
+
+# stolen from template file
+if git rev-parse --verify HEAD
+then
+    against=HEAD
+else
+    # Initial commit: diff against an empty tree object
+    against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+fi
+
+# this is the magic:
+# retrieve all files in staging area that are added, modified or renamed
+# but no deletions etc
+FILES=$(git diff-index --name-only --cached --diff-filter=ACMR $against -- )
+
+if [ "$FILES" == "" ]; then
+    exit 0
+fi
+
+# create temporary copy of staging area
+if [ -e $TMP_STAGING ]; then
+    rm -rf $TMP_STAGING
+fi
+mkdir -p $TMP_STAGING/src/app
+
+# match files against whitelist
+FILES_TO_CHECK=""
+for FILE in $FILES
+do
+    echo "$FILE" | egrep -q "$PHPCS_FILE_PATTERN"
+    PHPCS_RETVAL=$?
+    if [ "$PHPCS_RETVAL" -eq "0" ]
+    then
+        FILES_TO_CHECK="$FILES_TO_CHECK $FILE"
+    fi
+done
+
+if [ "$FILES_TO_CHECK" == "" ]; then
+    exit 0
+fi
+
+# execute the code sniffer
+if [ "$PHPCS_IGNORE" != "" ]; then
+    IGNORE="--ignore=$PHPCS_IGNORE"
+else
+    IGNORE=""
+fi
+
+# execute the mess detector
+if [ "$PHPMD_EXCLUDE" != "" ]; then
+    EXCLUDE="--exclude $PHPMD_EXCLUDE"
+else
+    EXCLUDE=""
+fi
+
+if [ "$PHPCS_SNIFFS" != "" ]; then
+    SNIFFS="--sniffs=$PHPCS_SNIFFS"
+else
+    SNIFFS=""
+fi
+
+if [ "$PHPCS_ENCODING" != "" ]; then
+    ENCODING="--encoding=$PHPCS_ENCODING"
+else
+    ENCODING=""
+fi
+
+if [ "$PHPCS_IGNORE_WARNINGS" == "1" ]; then
+    IGNORE_WARNINGS="-n"
+else
+    IGNORE_WARNINGS=""
+fi
+
+# Copy contents of staged version of files to temporary staging area
+# because we only want the staged version that will be commited and not
+# the version in the working directory
+STAGED_FILES=""
+for FILE in $FILES_TO_CHECK
+do
+    ID=$(git diff-index --cached $against $FILE | cut -d " " -f4)
+
+    # create staged version of file in temporary staging area with the same
+    # path as the original file so that the phpcs ignore filters can be applied
+    mkdir -p "$TMP_STAGING/$(dirname $FILE)"
+    git cat-file blob $ID > "$TMP_STAGING/$FILE"
+    STAGED_FILES="$STAGED_FILES $TMP_STAGING/$FILE"
+
+    # check php syntax error
+    errors=$(php -l "$TMP_STAGING/$FILE" 2>&1 | grep "PHP Parse error" | sed -e "s|.tmp_staging/||")
+    if [[ "$errors" ]]; then
+        echo $errors
+        echo -e "\nPHPファイルに文法エラーがあります。修正してください。"
+        rm -rf $TMP_STAGING
+        exit 1
+    fi
+done
+echo `pwd`
+
+# CodeSniffer
+
+echo "$PHPCS_BIN -s $IGNORE_WARNINGS --standard=$PHPCS_CODING_STANDARD $ENCODING $IGNORE $SNIFFS $STAGED_FILES"
+PHPCS_OUTPUT=$($PHPCS_BIN -s $IGNORE_WARNINGS --standard=$PHPCS_CODING_STANDARD $ENCODING $IGNORE $SNIFFS $STAGED_FILES)
+PHPCS_RETVAL=$?
+
+if [ $PHPCS_RETVAL -ne 0 ]; then
+    if [ "$FILE_OUTPUT" == "1" ]; then
+        echo "$PHPCS_OUTPUT"
+        echo "$PHPCS_OUTPUT" > phpcs.log
+    else
+        echo "$PHPCS_OUTPUT"
+    fi
+    # delete temporary copy of staging area
+    rm -rf $TMP_STAGING
+
+    exit $PHPCS_RETVAL
+fi
+
+# MessDetector
+
+echo "$PHPMD_BIN $TMP_STAGING text $PHPMD_RULES $EXCLUDE"
+PHPMD_OUTPUT=$($PHPMD_BIN $TMP_STAGING text $PHPMD_RULES $EXCLUDE)
+PHPMD_RETVAL=$?
+
+if [ $PHPMD_RETVAL -ne 0 ]; then
+    if [ "$FILE_OUTPUT" == "1" ]; then
+        echo "$PHPMD_OUTPUT"
+        echo "$PHPMD_OUTPUT" > phpmd.log
+    else
+        echo "$PHPMD_OUTPUT"
+    fi
+    # delete temporary copy of staging area
+    rm -rf $TMP_STAGING
+    exit $PHPMD_RETVAL
+fi
+
+# Larastan
+# https://github.com/baopham/laravel-dynamodb の関係でlevelを4に変更
+echo "php src/artisan code:analyse --paths='.tmp_stating' --error-format table --level=4"
+PHPSTAN_OUTPUT=$(php src/artisan code:analyse --paths='.tmp_staging/src/app' --error-format table --level=4)
+PHPSTAN_RETVAL=$?
+
+if [ $PHPSTAN_RETVAL -ne 0 ]; then
+    if [ "$FILE_OUTPUT" == "1" ]; then
+        echo "$PHPSTAN_OUTPUT"
+        echo "$PHPSTAN_OUTPUT" > larastan.log
+    else
+        echo "$PHPSTAN_OUTPUT"
+    fi
+    # delete temporary copy of staging area
+    rm -rf $TMP_STAGING
+    exit $PHPSTAN_RETVAL
+fi
+
+exit
