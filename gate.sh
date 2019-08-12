@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker-compose exec app ash
+docker-compose exec app bash
